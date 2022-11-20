@@ -58,6 +58,7 @@ namespace SynNotSoSalty
             FunctionConditionData functionConditionData = new FunctionConditionData();
             functionConditionData.Function = Condition.Function.GetItemCount;
             functionConditionData.ParameterOneRecord.FormKey = SaltPile;
+            //functionConditionData.ParameterTwoRecord.FormKey = SaltPile;
             functionConditionData.RunOnType = Condition.RunOnType.Subject;
             functionConditionData.Unknown3 = -1;
             
