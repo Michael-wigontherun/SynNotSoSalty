@@ -5,5 +5,7 @@
   "LongDescription": "https://www.nexusmods.com/skyrimspecialedition/mods/73314",
   "PreferredAutoVersioning": "LatestTag",
   "RequiredMods": [],
-  "TargetedReleases": []
+  "TargetedReleases": [
+    "SkyrimSE"
+  ]
 }
