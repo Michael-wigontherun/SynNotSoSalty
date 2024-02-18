@@ -6,6 +6,7 @@
   "PreferredAutoVersioning": "LatestTag",
   "RequiredMods": [],
   "TargetedReleases": [
-    "SkyrimSE"
+    "SkyrimSE",
+    "SkyrimSEGog"
   ]
 }
