@@ -2,10 +2,6 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Plugins;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 
 namespace SynNotSoSalty
 {
@@ -18,10 +14,10 @@ namespace SynNotSoSalty
         public static FormKey VoidSalt;
         public static FormKey FrostSalt;
         public static FormKey FireSalt;
-        public static ConditionGlobal SaltCondition = new ConditionGlobal();
-        public static ConditionGlobal VoidSaltCondition = new ConditionGlobal();
-        public static ConditionGlobal FrostSaltCondition = new ConditionGlobal();
-        public static ConditionGlobal FireSaltCondition = new ConditionGlobal();
+        public static ConditionFloat SaltCondition = new();
+        public static ConditionFloat VoidSaltCondition = new();
+        public static ConditionFloat FrostSaltCondition = new();
+        public static ConditionFloat FireSaltCondition = new();
 
 
         public static async Task<int> Main(string[] args)
@@ -35,134 +31,160 @@ namespace SynNotSoSalty
 
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
-            FormKey.TryFactory("034CDF:Skyrim.esm", out SaltPile);
+            SaltPile = FormKey.Factory("034CDF:Skyrim.esm");
 
             if (Settings.EnableMagicSalt)
             {
-                FormKey.TryFactory("03AD60:Skyrim.esm", out VoidSalt);
-                FormKey.TryFactory("03AD5F:Skyrim.esm", out FrostSalt);
-                FormKey.TryFactory("03AD5E:Skyrim.esm", out FireSalt);
+                VoidSalt  = FormKey.Factory("03AD60:Skyrim.esm");
+                FrostSalt = FormKey.Factory("03AD5F:Skyrim.esm");
+                FireSalt  = FormKey.Factory("03AD5E:Skyrim.esm");
             }
 
-            //IEnumerable<IConstructibleObjectGetter> constructibleObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides();
+            //var constructibleObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides();
 
             BuildSaltCondition();
             if (Settings.EnableMagicSalt) BuildMagicSaltConditions();
 
-            foreach (IConstructibleObjectGetter constructibleObject in state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides())
+            foreach (var constructibleObject in state.LoadOrder.ListedOrder.ConstructibleObject().WinningOverrides())
             {
-                if(constructibleObject.Items != null)
+                if (constructibleObject.Items == null) continue;
+                var newConObj = constructibleObject.DeepCopy();
+                if (newConObj.Items == null) continue;
+                bool changed = false;
+                bool saltCon = false;
+
+                bool isMagicSalt = false;
+                bool voidCon = false;
+                bool frostCon = false;
+                bool fireCon = false;
+
+                int saltCount = 0;
+
+                foreach (var item in constructibleObject.Items.ToArray())
                 {
-                    ConstructibleObject newConstructibleObjectOverride = constructibleObject.DeepCopy();
-                    bool magicSalts = false;
-                    int magicSaltsCount = 0;
-                    bool foundSaltPile = false;
-                    bool changed = false;
-                    foreach (IContainerEntryGetter containerEntryGetter in constructibleObject.Items.ToArray())
+                    if (Settings.EnableMagicSalt)
                     {
-                        if (Settings.EnableMagicSalt)
+                        if (item.Item.Item.FormKey.Equals(VoidSalt))
                         {
-                            if (containerEntryGetter.Item.Item.FormKey.Equals(VoidSalt))
-                            {
-                                magicSalts = true;
-                                changed = true;
-                                magicSaltsCount += containerEntryGetter.Item.Count;
-                                newConstructibleObjectOverride.Items!.Remove(containerEntryGetter.DeepCopy());
-                                newConstructibleObjectOverride.Conditions.Insert(0, VoidSaltCondition);
-                            }
-
-                            if (containerEntryGetter.Item.Item.FormKey.Equals(FrostSalt))
-                            {
-                                magicSalts = true;
-                                changed = true;
-                                magicSaltsCount += containerEntryGetter.Item.Count;
-                                newConstructibleObjectOverride.Items!.Remove(containerEntryGetter.DeepCopy());
-                                newConstructibleObjectOverride.Conditions.Insert(0, FrostSaltCondition);
-                            }
-
-                            if (containerEntryGetter.Item.Item.FormKey.Equals(FireSalt))
-                            {
-                                magicSalts = true;
-                                changed = true;
-                                magicSaltsCount += containerEntryGetter.Item.Count;
-                                newConstructibleObjectOverride.Items!.Remove(containerEntryGetter.DeepCopy());
-                                newConstructibleObjectOverride.Conditions.Insert(0, FireSaltCondition);
-                            }
+                            isMagicSalt = true;
+                            voidCon = true;
+                            saltCount += item.Item.Count;
+                            newConObj.Items.Remove(item.DeepCopy());
                         }
-
-                        if (containerEntryGetter.Item.Item.FormKey.Equals(SaltPile))
+                        else if (item.Item.Item.FormKey.Equals(FrostSalt))
                         {
-                            foundSaltPile = true;
-                            changed = true;
-                            if (!magicSalts) newConstructibleObjectOverride.Items!.Remove(containerEntryGetter.DeepCopy());
+                            isMagicSalt = true;
+                            frostCon = true;
+                            saltCount += item.Item.Count;
+                            newConObj.Items.Remove(item.DeepCopy());
+                        }
+                        else if (item.Item.Item.FormKey.Equals(FireSalt))
+                        {
+                            isMagicSalt = true;
+                            fireCon = true;
+                            saltCount += item.Item.Count;
+                            newConObj.Items.Remove(item.DeepCopy());
                         }
                     }
 
-                    if (magicSalts)
+                    if (item.Item.Item.FormKey.Equals(SaltPile))
                     {
-                        ContainerEntry saltContainerEntry = new ContainerEntry();
-                        saltContainerEntry.Item.Item.FormKey = SaltPile;
-                        saltContainerEntry.Item.Count = magicSaltsCount;
-                        newConstructibleObjectOverride.Items!.Add(saltContainerEntry);
-                    }
-                    else if (foundSaltPile)
-                    {
-                        newConstructibleObjectOverride.Conditions.Insert(0, SaltCondition);
-                    }
-                    
-                    if (changed)
-                    {
-                        state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(newConstructibleObjectOverride);
+                        saltCon = true;
+                        newConObj.Items.Remove(item.DeepCopy());
+                        Console.WriteLine(constructibleObject.FormKey.ToString());
                     }
                 }
-                
+
+                if (isMagicSalt)
+                {
+                    if (voidCon)
+                    {
+                        newConObj.Conditions.Insert(0, VoidSaltCondition);
+                        changed = true;
+                    }
+                    if (frostCon)
+                    {
+                        newConObj.Conditions.Insert(0, FrostSaltCondition);
+                        changed = true;
+                    }
+                    if (fireCon)
+                    {
+                        newConObj.Conditions.Insert(0, FireSaltCondition);
+                        changed = true;
+                    }
+
+                    if (Settings.MagicSaltRequiresRegularSalt)
+                    {
+                        var conEnt = new Mutagen.Bethesda.Skyrim.ContainerEntry();
+                        conEnt.Item.Item.FormKey = SaltPile;
+                        conEnt.Item.Count = saltCount;
+
+                        newConObj.Items.Insert(0, conEnt);
+                    }
+                }
+                else
+                {
+                    if (saltCon)
+                    {
+                        newConObj.Conditions.Insert(0, SaltCondition);
+                        changed = true;
+                    }
+                }
+
+                if(changed) state.PatchMod.ConstructibleObjects.GetOrAddAsOverride(newConObj);
+                changed = false;
+                saltCon = false;
+
+                isMagicSalt = false;
+                voidCon = false;
+                frostCon = false;
+                fireCon = false;
+
+                saltCount = 0;
             }
+            
+
+            
         }
 
         public static void BuildSaltCondition()
         {
-            FunctionConditionData functionConditionData = new FunctionConditionData();
-            functionConditionData.Function = Condition.Function.GetItemCount;
-            functionConditionData.ParameterOneRecord.FormKey = SaltPile;
-            //functionConditionData.ParameterTwoRecord.FormKey = SaltPile;
-            functionConditionData.RunOnType = Condition.RunOnType.Subject;
-            functionConditionData.Unknown3 = -1;
-            
-            SaltCondition.Data = functionConditionData;
             SaltCondition.CompareOperator = CompareOperator.GreaterThan;
+            SaltCondition.ComparisonValue = 0;
+
+            var data = new GetItemCountConditionData();
+            data.RunOnType = Condition.RunOnType.Subject;
+            data.ItemOrList.Link.FormKey = SaltPile;
+
+            SaltCondition.Data = data;
         }
 
         public static void BuildMagicSaltConditions()
         {
-            FunctionConditionData functionConditionDataVoid = new FunctionConditionData();
-            functionConditionDataVoid.Function = Condition.Function.GetItemCount;
-            functionConditionDataVoid.ParameterOneRecord.FormKey = VoidSalt;
-            //functionConditionData.ParameterTwoRecord.FormKey = SaltPile;
-            functionConditionDataVoid.RunOnType = Condition.RunOnType.Subject;
-            functionConditionDataVoid.Unknown3 = -1;
 
-            VoidSaltCondition.Data = functionConditionDataVoid;
+            //Void
             VoidSaltCondition.CompareOperator = CompareOperator.GreaterThan;
+            VoidSaltCondition.ComparisonValue = 0; 
+            GetItemCountConditionData vdata = new GetItemCountConditionData();
+            vdata.RunOnType = Condition.RunOnType.Subject;
+            vdata.ItemOrList.Link.FormKey = VoidSalt;
+            VoidSaltCondition.Data = vdata;
 
-            FunctionConditionData functionConditionDataFrost = new FunctionConditionData();
-            functionConditionDataFrost.Function = Condition.Function.GetItemCount;
-            functionConditionDataFrost.ParameterOneRecord.FormKey = FrostSalt;
-            //functionConditionData.ParameterTwoRecord.FormKey = SaltPile;
-            functionConditionDataFrost.RunOnType = Condition.RunOnType.Subject;
-            functionConditionDataFrost.Unknown3 = -1;
-
-            FrostSaltCondition.Data = functionConditionDataFrost;
+            //Frost
             FrostSaltCondition.CompareOperator = CompareOperator.GreaterThan;
+            FrostSaltCondition.ComparisonValue = 0;
+            GetItemCountConditionData frostdata = new GetItemCountConditionData();
+            frostdata.RunOnType = Condition.RunOnType.Subject;
+            frostdata.ItemOrList.Link.FormKey = FrostSalt;
+            FrostSaltCondition.Data = frostdata;
 
-            FunctionConditionData functionConditionDataFire = new FunctionConditionData();
-            functionConditionDataFire.Function = Condition.Function.GetItemCount;
-            functionConditionDataFire.ParameterOneRecord.FormKey = FireSalt;
-            //functionConditionData.ParameterTwoRecord.FormKey = SaltPile;
-            functionConditionDataFire.RunOnType = Condition.RunOnType.Subject;
-            functionConditionDataFire.Unknown3 = -1;
-
-            FireSaltCondition.Data = functionConditionDataFire;
+            //Fire
             FireSaltCondition.CompareOperator = CompareOperator.GreaterThan;
+            FireSaltCondition.ComparisonValue = 0;
+            GetItemCountConditionData firedata = new GetItemCountConditionData();
+            firedata.RunOnType = Condition.RunOnType.Subject;
+            firedata.ItemOrList.Link.FormKey = FireSalt;
+            FireSaltCondition.Data = firedata;
 
         }
     }

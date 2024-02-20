@@ -9,5 +9,6 @@ namespace SynNotSoSalty
     public class Settings
     {
         public bool EnableMagicSalt { get; set; } = false;
+        public bool MagicSaltRequiresRegularSalt = true;
     }
 }
