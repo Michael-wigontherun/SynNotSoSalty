@@ -112,14 +112,16 @@ namespace SynNotSoSalty
                         newConObj.Conditions.Insert(0, FireSaltCondition);
                         changed = true;
                     }
-
-                    if (Settings.MagicSaltRequiresRegularSalt)
+                    if (changed)
                     {
-                        var conEnt = new Mutagen.Bethesda.Skyrim.ContainerEntry();
-                        conEnt.Item.Item.FormKey = SaltPile;
-                        conEnt.Item.Count = saltCount;
+                        if (Settings.MagicSaltRequiresRegularSalt)
+                        {
+                            var conEnt = new Mutagen.Bethesda.Skyrim.ContainerEntry();
+                            conEnt.Item.Item.FormKey = SaltPile;
+                            conEnt.Item.Count = saltCount;
 
-                        newConObj.Items.Insert(0, conEnt);
+                            newConObj.Items.Insert(0, conEnt);
+                        }
                     }
                 }
                 else
