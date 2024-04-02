@@ -45,7 +45,7 @@ namespace SynNotSoSalty
             BuildSaltCondition();
             if (Settings.EnableMagicSalt) BuildMagicSaltConditions();
 
-            foreach (var constructibleObject in state.LoadOrder.ListedOrder.ConstructibleObject().WinningOverrides())
+            foreach (var constructibleObject in state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides())
             {
                 if (constructibleObject.Items == null) continue;
                 var newConObj = constructibleObject.DeepCopy();
